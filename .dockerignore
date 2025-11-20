@@ -1,0 +1,24 @@
+# Ignore virtual environments
+env/
+
+# Ignore datasets
+All img/
+bodym_dataset/
+
+# Git files
+.git
+.gitignore
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Jupyter stuff
+.ipynb_checkpoints/
+*.ipynb
+
+# OS files
+.DS_Store
+
+# Logs
+*.log

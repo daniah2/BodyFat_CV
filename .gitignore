@@ -1,0 +1,33 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+env/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+
+# Python cache
+*.pytest_cache/
+*.mypy_cache/
+
+# Dataset folders
+All img/
+bodym_dataset/
+
+# Logs
+*.log
+
+# Environment files
+.env
+*.env
+
+# FastAPI auto files
+*.db
