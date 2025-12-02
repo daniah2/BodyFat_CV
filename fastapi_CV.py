@@ -7,6 +7,7 @@ from PIL import Image
 import io
 import torch.nn as nn
 import timm
+from fastapi.middleware.cors import CORSMiddleware
 
 # Device
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -26,8 +27,8 @@ class ImprovedBodyFatModel(nn.Module):
         features = self.backbone(x)
         return self.classifier(features)
 
-#down.. model using state_dict 
-MODEL_PATH = "best_model.pth"  # save state_dict 
+# load model
+MODEL_PATH = "best_model.pth"
 model = ImprovedBodyFatModel()
 model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
 model.to(DEVICE)
@@ -35,42 +36,45 @@ model.eval()
 
 IMG_SIZE = 224
 
-
 # FastAPI
 app = FastAPI(title="Body Fat & Muscle Prediction IMG API")
 
+# CORS middleware للسماح للصفحة بالوصول للـ API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # ضع هنا رابط موقعك إذا تريد تقييد الوصول
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-#img proccessing 
+# image preprocessing
 def preprocess_image(image_bytes):
     image = Image.open(io.BytesIO(image_bytes)).convert("L")  # grayscale
     img = np.array(image)
-    # GRAY → BGR (3 channels)
     img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-    # Resize
     img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
-    # Normalize
     img = img.astype(np.float32) / 255.0
     img = (img - 0.5) / 0.5
-    # HWC → CHW (transpose)
     img = np.transpose(img, (2, 0, 1))
-    # To tensor
     img = torch.tensor(img).unsqueeze(0).float().to(DEVICE)
     return img
 
-
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
-    image_bytes = await file.read()
-    # Preprocess image
-    img_tensor = preprocess_image(image_bytes)
-    # Model prediction
-    with torch.no_grad():
-        pred = model(img_tensor).cpu().numpy().squeeze()
-    # Convert output to %
-    bodyfat = round(float(pred[0]) * 100, 2)
-    muscle = round(100 - bodyfat, 2)
-
-    return JSONResponse({
-        "body_fat_percentage": bodyfat,
-        "muscle_percentage": muscle
-    })
+    try:
+        image_bytes = await file.read()
+        img_tensor = preprocess_image(image_bytes)
+        with torch.no_grad():
+            pred = model(img_tensor).cpu().numpy().squeeze()
+        bodyfat = round(float(pred[0]) * 100, 2)
+        muscle = round(100 - bodyfat, 2)
+        return JSONResponse({
+            "body_fat_percentage": bodyfat,
+            "muscle_percentage": muscle
+        })
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
